@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Based Movie Recommender</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card:hover { transform: translateY(-10px); box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.3); }
+        .mood-btn { transition: all 0.2s ease-in-out; }
+        .mood-btn:hover { transform: scale(1.05); }
+        .loader { border-top-color: #4f46e5; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">Movie Night Recommender</h1>
+            <p class="text-lg text-gray-400">How are you feeling today?</p>
+        </header>
+
+        <main>
+            <section id="mood-selection" class="mb-12">
+                <div id="mood-buttons" class="flex flex-wrap justify-center gap-3 md:gap-4">
+                    </div>
+            </section>
+
+            <div id="loader" class="hidden justify-center my-12">
+                <div class="loader w-16 h-16 border-8 border-gray-700 rounded-full"></div>
+            </div>
+            
+            <div id="error-message" class="hidden text-center my-8 bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg"></div>
+
+            <section id="recommendations" class="hidden">
+                <h2 id="results-title" class="text-3xl font-bold mb-8 text-center"></h2>
+                <div id="movies-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                    </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const moodButtonsContainer = document.getElementById('mood-buttons');
+            const loader = document.getElementById('loader');
+            const recommendationsSection = document.getElementById('recommendations');
+            const moviesGrid = document.getElementById('movies-grid');
+            const resultsTitle = document.getElementById('results-title');
+            const errorMessage = document.getElementById('error-message');
+
+            const moods = [
+                { name: 'Adrenaline Rush', emoji: '🎢' }, { name: 'Adventurous', emoji: '🗺️' },
+                { name: 'Funny', emoji: '😂' }, { name: 'Feel Good', emoji: '😊' },
+                { name: 'Intense', emoji: '🔥' }, { name: 'Emotional', emoji: '😢' },
+                { name: 'Heartwarming', emoji: '❤️' }, { name: 'Imaginative', emoji: '🦄' },
+                { name: 'Scary', emoji: '👻' }, { name: 'Intriguing', emoji: '🤔' },
+                { name: 'Romantic', emoji: '💕' }, { name: 'Thought-Provoking', emoji: '🧠' },
+                { name: 'Gritty', emoji: '🤠' }
+            ];
+
+            moods.forEach(mood => {
+                const button = document.createElement('button');
+                button.className = `mood-btn bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-full shadow-lg flex items-center gap-2`;
+                button.innerHTML = `<span>${mood.emoji}</span> ${mood.name}`;
+                button.onclick = () => getMovies(mood.name);
+                moodButtonsContainer.appendChild(button);
+            });
+
+            async function getMovies(mood) {
+                recommendationsSection.classList.add('hidden');
+                errorMessage.classList.add('hidden');
+                loader.style.display = 'flex';
+
+                try {
+                    const response = await fetch(`http://127.0.0.1:5000/recommend?mood=${encodeURIComponent(mood)}`);
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Server error: ${response.statusText}`);
+                    }
+                    const movies = await response.json();
+                    displayMovies(movies, mood);
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    displayError(`Could not fetch recommendations. Please ensure the backend server is running correctly.`);
+                } finally {
+                    loader.style.display = 'none';
+                }
+            }
+            
+            function displayError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+            }
+
+            function displayMovies(movies, mood) {
+                moviesGrid.innerHTML = '';
+                resultsTitle.innerText = `Top Picks for a ${mood} Mood`;
+                
+                movies.forEach(movie => {
+                    const card = document.createElement('div');
+                    card.className = 'card bg-gray-800 rounded-lg overflow-hidden shadow-2xl';
+                    card.innerHTML = `
+                        <img src="${movie.poster}" alt="${movie.title} Poster" class="w-full h-[450px] object-cover" onerror="this.src='https://placehold.co/300x450/2d3748/ffffff?text=${encodeURIComponent(movie.title)}'; this.classList.add('object-contain'); this.classList.remove('object-cover');">
+                        <div class="p-4">
+                            <h3 class="font-bold text-lg truncate">${movie.title} (${movie.year})</h3>
+                            <div class="flex items-center text-sm text-yellow-400 mt-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                <span class="ml-1 font-semibold text-white">${movie.imdbRating}</span>
+                            </div>
+                        </div>
+                    `;
+                    moviesGrid.appendChild(card);
+                });
+                recommendationsSection.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
